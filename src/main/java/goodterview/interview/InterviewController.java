@@ -1,10 +1,9 @@
 package goodterview.interview;
 
+import goodterview.openai.ChatMessage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -13,19 +12,30 @@ public class InterviewController {
 
     private final InterviewService interviewService;
 
-    @PostMapping("/{sessionId}")
-    public ResponseEntity<String> ask(
-            @PathVariable String sessionId,
-            @RequestBody Map<String, String> request) {
+    // 면접 시작 (언어 선택 + sessionId 입력 → 자기소개 질문)
+    @PostMapping("/start")
+    public ResponseEntity<InterviewStartResponse> start(@RequestBody InterviewStartRequest request) {
+        InterviewStartResponse resp = interviewService.startInterview(request);
+        return ResponseEntity.ok(resp);
+    }
 
-        String question = request.get("question");
 
-        // 예외 처리 (선택)
-        if (question == null || question.trim().isEmpty()) {
-            return ResponseEntity.badRequest().body("질문이 비어있습니다.");
+    // 이후 질문 응답
+    @PostMapping
+    public ResponseEntity<ChatMessage> ask(@RequestBody InterviewRequest request) {
+        if (request.getSessionId() == null || request.getSessionId().isBlank()) {
+            return ResponseEntity.badRequest().body(
+                    new ChatMessage("system", "sessionId는 필수입니다.")
+            );
+        }
+        if (request.getQuestion() == null || request.getQuestion().isBlank()) {
+            return ResponseEntity.badRequest().body(
+                    new ChatMessage("system", "question은 필수입니다.")
+            );
         }
 
-        String answer = interviewService.askQuestion(sessionId, question);
+        ChatMessage answer = interviewService.askQuestion(request);
         return ResponseEntity.ok(answer);
     }
 }
+

@@ -16,19 +16,18 @@ public class InterviewSessionService {
     private final RedisTemplate<String, Object> redisTemplate;
     private static final String PREFIX = "interview:";
 
-    public void saveMessage(String sessionId, ChatMessage message) {
-        redisTemplate.opsForList().rightPush(PREFIX + sessionId, message);
-    }
-
-    @SuppressWarnings("unchecked")
     public List<ChatMessage> getMessages(String sessionId) {
         List<Object> objects = redisTemplate.opsForList().range(PREFIX + sessionId, 0, -1);
-        return objects == null ? new ArrayList<>() :
-                objects.stream().map(obj -> (ChatMessage) obj)
-                        .collect(Collectors.toCollection(ArrayList::new)); // ← 가변 리스트로 반환
+        if (objects == null) return new ArrayList<>();
+        return objects.stream()
+                .map(obj -> (ChatMessage) obj)
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
-    public void clearSession(String sessionId) {
-        redisTemplate.delete(PREFIX + sessionId);
+    public void saveMessages(String sessionId, List<ChatMessage> messages) {
+        redisTemplate.delete(PREFIX + sessionId); // 먼저 기존 메시지 삭제
+        for (ChatMessage msg : messages) {
+            redisTemplate.opsForList().rightPush(PREFIX + sessionId, msg);
+        }
     }
 }
